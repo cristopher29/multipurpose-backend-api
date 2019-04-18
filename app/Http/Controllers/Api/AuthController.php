@@ -5,33 +5,39 @@ namespace App\Http\Controllers\Api;
 use App\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use Tymon\JWTAuth\Exceptions\JWTException;
+use Tymon\JWTAuth\Exceptions\TokenBlacklistedException;
+use Tymon\JWTAuth\Exceptions\TokenExpiredException;
+use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 
 class AuthController extends Controller
 {
 
     public function __construct(){
 
-        $this->middleware('jwt.refresh')->only('refresh');
+        //$this->middleware('jwt.refresh')->only('refresh');
         $this->middleware('jwt.auth', ['except' => ['login', 'register', 'refresh']]);
 
     }
 
-    public function login(Request $request){
+    public function login(Request $request)
+    {
 
         $credentials = $request->only('email', 'password');
 
-        if(!$token = Auth::guard('api')->attempt($credentials)){
-            return response()->json(['error' => 'Unauthorized'], 401);
+        if(!$token = auth('api')->attempt($credentials)){
+            return $this->sendError('jwt-login-credentials', ['Bad credentials'],401);
         }
 
         return $this->sendResponse($this->prepareToken($token), "Successfully login");
 
     }
 
-    public function register(Request $request){
-
+    public function register(Request $request)
+    {
 
         $validator = Validator::make($request->all(), [
             'email' => 'required|string|email|unique:users',
@@ -39,7 +45,7 @@ class AuthController extends Controller
         ]);
 
         if($validator->fails()){
-            return $this->sendError('Validation Error.', $validator->errors(), 400);
+            return $this->sendError('jwt-register-validation', $validator->errors(), 400);
         }
 
 
@@ -47,35 +53,81 @@ class AuthController extends Controller
             'email' => $request->get('email'),
             'password' => bcrypt($request->get('password')),
         ]);
-        $user->save();
 
-        $token = Auth::guard('api')->fromUser($user);
+        $token = auth('api')->fromUser($user);
+
+        DB::table('users')
+            ->where('id', $user->id)
+            ->update(['api_token' => $token]);
 
         return $this->sendResponse($this->prepareToken($token), "Successfully register");
 
     }
 
-    public function logout(Request $request){
+    public function logout(Request $request)
+    {
 
-        Auth::guard('api')->logout();
+        $this->checkToken($request);
+
+        auth('api')->logout();
         return $this->sendResponse([],"Successfully logout");
 
     }
 
     public function me(Request $request)
     {
-        return $this->sendResponse(JWTAuth::user(),"User data");
+        $this->checkToken($request);
+
+        return $this->sendResponse(auth('api')->user(),"User data");
     }
 
 
-    public function refresh(Request $request){
+    public function refresh(Request $request)
+    {
 
-        $token = Auth::guard('api')->fromUser(Auth::guard('api')->user());
+        $this->checkToken($request);
+
+        $user = $request->user('api');
+
+        try {
+            $token = auth('api')->parseToken()->refresh();
+        } catch (JWTException $e) {
+            return $this->sendError('jwt-auth',$e->getMessage(), $e->getCode());
+        }
+
+
+        DB::table('users')
+            ->where('id', $user->id)
+            ->update(['api_token' => $token]);
+
         return $this->sendResponse($token, "New token");
 
     }
 
-    protected function prepareToken($token): array
+
+    protected function checkToken(Request $request)
+    {
+
+        if(!auth('api')->parser()->setRequest($request)->hasToken()){
+            return $this->sendError('jwt-empty-token',['Token not provided'], 401);
+        }
+
+        try{
+            auth('api')->checkOrFail();
+        }catch (JWTException $e) {
+            if($e instanceof TokenExpiredException){
+                return $this->sendError('jwt-token-expired',['Token expired'], 401);
+            }else if($e instanceof TokenInvalidException){
+                return $this->sendError('jwt-token-invalid',['Token invalid'], 401);
+            }else if($e instanceof TokenBlacklistedException){
+                return $this->sendError('jwt-token-blacklisted',['Token blacklisted'], 401);
+            }
+        }
+
+        return $this->sendError('jwt-unknown-error',['Unknown error'], 401);
+    }
+
+    protected function prepareToken($token)
     {
         return [
             'access_token' => $token,
@@ -84,7 +136,7 @@ class AuthController extends Controller
         ];
     }
 
-    public function sendResponse($result, $message)
+    protected function sendResponse($result, $message)
     {
         $response = [
             'success' => true,
@@ -95,7 +147,7 @@ class AuthController extends Controller
         return response()->json($response, 200);
     }
 
-    public function sendError($error, $errorMessages = [], $code = 404)
+    protected function sendError($error, $errorMessages = [], $code = 404)
     {
         $response = [
             'success' => false,

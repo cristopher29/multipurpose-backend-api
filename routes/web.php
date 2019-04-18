@@ -26,6 +26,18 @@ Route::any('/dashboard/users', 'Web\UsersController@users')->name('dashboard.use
 //Route::get('/login', 'Web\AuthController@showLogin')->name('showLogin');
 
 
-Auth::routes();
+Route::get('login', 'Web\Auth\LoginController@showLoginForm')->name('login');
+Route::post('login', 'Web\Auth\LoginController@login');
+Route::post('logout', 'Web\Auth\LoginController@logout')->name('logout');
+
+Route::get('register', 'Web\Auth\RegisterController@showRegistrationForm')->name('register');
+Route::post('register', 'Web\Auth\RegisterController@register');
+
+Route::get('password/reset', 'Web\Auth\ForgotPasswordController@showLinkRequestForm')->name('password.request');
+Route::post('password/email', 'Web\Auth\ForgotPasswordController@sendResetLinkEmail')->name('password.email');
+Route::get('password/reset/{token}', 'Web\Auth\ResetPasswordController@showResetForm')->name('password.reset');
+Route::post('password/reset', 'Auth\ResetPasswordController@reset')->name('password.update');
+
+//Auth::routes();
 
 //Route::get('/home', 'HomeController@index')->name('home');
