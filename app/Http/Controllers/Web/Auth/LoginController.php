@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 class LoginController extends Controller
 {
@@ -35,7 +36,16 @@ class LoginController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('guest:web')->except('logout');
+        $this->middleware(['guest:web'])->except('logout');
+    }
+
+    protected function authenticated(Request $request, $user)
+    {
+        if($user->verified==false){
+            $this->logout($request);
+            return redirect()->route('login')->with('email.verification.error', 'You must verify your email to continue.');
+        }
+        return true;
     }
 
     protected function guard()

@@ -25,7 +25,6 @@ Route::any('/dashboard/users', 'Web\UsersController@users')->name('dashboard.use
 //Route::post('/login', 'Web\AuthController@login')->name('login');
 //Route::get('/login', 'Web\AuthController@showLogin')->name('showLogin');
 
-
 Route::get('login', 'Web\Auth\LoginController@showLoginForm')->name('login');
 Route::post('login', 'Web\Auth\LoginController@login');
 Route::post('logout', 'Web\Auth\LoginController@logout')->name('logout');
@@ -38,6 +37,9 @@ Route::post('password/email', 'Web\Auth\ForgotPasswordController@sendResetLinkEm
 Route::get('password/reset/{token}', 'Web\Auth\ResetPasswordController@showResetForm')->name('password.reset');
 Route::post('password/reset', 'Auth\ResetPasswordController@reset')->name('password.update');
 
-//Auth::routes();
+// Email verification
+Route::get('email/verify', 'Web\Auth\VerificationController@show')->name('verification.notice');
+Route::get('email/verify/{id}', 'Web\Auth\VerificationController@verify')->name('verification.verify');
+Route::get('email/resend', 'Web\Auth\VerificationController@resend')->name('verification.resend');
 
 //Route::get('/home', 'HomeController@index')->name('home');

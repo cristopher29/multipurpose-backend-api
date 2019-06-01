@@ -23,7 +23,11 @@
                             </h2>
                         </div>
                         <!-- END Header -->
-
+                        @if (session('email.verification.error'))
+                            <div class="alert alert-warning">
+                                {{ session('email.verification.error') }}
+                            </div>
+                        @endif
                         <!-- Sign In Form -->
                         <!-- jQuery Validation (.js-validation-signin class is initialized in js/pages/op_auth_signin.min.js which was auto compiled from _es6/pages/op_auth_signin.js) -->
                         <!-- For more info and examples you can check out https://github.com/jzaefferer/jquery-validation -->
